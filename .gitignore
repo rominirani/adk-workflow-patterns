@@ -1,0 +1,40 @@
+# Byte-compiled / cached
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scratch / temporary
+scratch/
+scratch_*.py
+*.tmp
+
+# PDFs and large files
+*.pdf
+
+# Working directories not for the repo
+guides/
+slides/
+test_examples/
+adk-2-marathon-demo/
+adk2-tutorial/
+lab1_text.txt
+presentation_text.txt
+updated_guide.html
+tool_factory.py

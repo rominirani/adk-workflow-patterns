@@ -1,0 +1,149 @@
+# ADK Workflow Patterns — Learn by Example
+
+**Practical, tested examples for building AI agent workflows with Google's Agent Development Kit (ADK).**
+
+[![ADK](https://img.shields.io/badge/ADK-2.6.3-blue)](https://adk.dev)
+[![Python](https://img.shields.io/badge/Python-3.11+-green)](https://python.org)
+[![License](https://img.shields.io/badge/License-Apache%202.0-orange)](LICENSE)
+
+---
+
+I created this repo because I wanted to learn the ADK Workflow system from the ground up. The official docs are great, but I learn best by writing real code, running it, breaking it, and fixing it. So I built a series of progressively complex examples — each one tested against a live Vertex AI backend — to map out how every pattern actually works in practice.
+
+If you're the kind of developer who learns by doing, this repo is for you.
+
+## 📚 Guides
+
+This repo contains two comprehensive guides, each with fully tested, runnable code examples:
+
+### 1. [Graph Workflows](graph-workflows/) — 9 Examples
+> *"You draw the graph. The framework executes it."*
+
+When you know the exact shape of your workflow ahead of time, graph workflows give you deterministic, reproducible pipelines. Think assembly lines.
+
+| # | Pattern | What You'll Learn |
+|---|---|---|
+| 01 | Sequential Pipeline | Chain nodes: `START → A → B → Agent` |
+| 02 | Conditional Routing | Branch based on keywords with `EventActions(route=...)` |
+| 03 | Parallel Fan-out + Join | Run 3 tasks in ~1s instead of ~3s with `JoinNode` |
+| 04 | Full Pipeline | Fan-out → Join → Classify → Route |
+| 05 | Nested Workflows | Compose workflows inside workflows |
+| 06 | Loop with Quality Gate | Draft → Critic → Loop back or break |
+| 07 | Human-in-the-Loop | Pause for approval, resume with `state_delta` |
+| 08 | Dynamic Nodes | `@node(rerun_on_resume=True)` + `ctx.run_node()` |
+| 09 | Complete System | All patterns in one graph |
+
+### 2. [Collaborative Workflows](collaborative-workflows/) — 7 Examples
+> *"You define the team. The LLM decides who plays."*
+
+When you know the specialists but the user's request determines who gets involved, collaborative workflows let the LLM orchestrate.
+
+| # | Pattern | What You'll Learn |
+|---|---|---|
+| 01 | Sequential Pipeline | `SequentialAgent` with `output_key` for data passing |
+| 02 | Parallel Delegators | `ParallelAgent` for concurrent analysis |
+| 03 | Evaluator-Optimizer | `LoopAgent` with writer + critic loop |
+| 04 | Coordinator-Dispatcher | LLM routes to specialists via `sub_agents` |
+| 05 | Transfer Modes | `single_turn`, `task`, `chat` modes |
+| 06 | Custom BaseAgent | `_run_async_impl` with conditional branching |
+| 07 | Complete System | All patterns under one coordinator |
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.11+
+- Google Cloud project with Vertex AI API enabled
+- `gcloud auth login` completed
+
+### Setup
+
+```bash
+# Clone the repo
+git clone https://github.com/rominirani/adk-workflow-patterns.git
+cd adk-workflow-patterns
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install google-adk
+
+# Configure Vertex AI
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export GOOGLE_CLOUD_LOCATION="us-central1"
+export GOOGLE_GENAI_USE_VERTEXAI="True"
+```
+
+### Run Any Example
+
+```bash
+# Graph workflow example
+python graph-workflows/examples/01_sequential.py
+
+# Collaborative workflow example
+python collaborative-workflows/examples/01_sequential_pipeline.py
+```
+
+### Using an API Key Instead
+
+If you prefer using the Gemini API directly instead of Vertex AI:
+
+```bash
+export GOOGLE_API_KEY="your-api-key"
+# Don't set GOOGLE_GENAI_USE_VERTEXAI
+```
+
+## 🏗️ Repo Structure
+
+```
+adk-workflow-patterns/
+├── README.md                              ← You are here
+├── graph-workflows/
+│   ├── README.md                          ← Guide with theory + diagrams
+│   └── examples/
+│       ├── 01_sequential.py
+│       ├── 02_routing.py
+│       ├── ...
+│       └── 09_complete_system.py
+├── collaborative-workflows/
+│   ├── README.md                          ← Guide with theory + diagrams
+│   └── examples/
+│       ├── 01_sequential_pipeline.py
+│       ├── ...
+│       └── 07_complete_system.py
+├── requirements.txt
+├── .gitignore
+└── LICENSE
+```
+
+## 🔑 Key ADK 2 Concepts
+
+| Concept | Graph Workflows | Collaborative Workflows |
+|---|---|---|
+| **Who decides what runs?** | The graph you drew | The LLM model |
+| **Core primitive** | `Workflow(edges=[...])` | `LlmAgent(sub_agents=[...])` |
+| **Data flow** | `node_input` parameter | `output_key` → session state |
+| **Routing** | `EventActions(route=...)` | LLM reads `description` fields |
+| **Parallelism** | `JoinNode` | `ParallelAgent` |
+| **Loops** | Route back to earlier node | `LoopAgent(max_iterations=N)` |
+| **Dynamic** | `@node` + `ctx.run_node()` | `BaseAgent._run_async_impl()` |
+
+## ⚠️ ADK Version Notes
+
+These examples are tested against **ADK 2.6.3**. Notable API details:
+
+- `SequentialAgent`, `ParallelAgent`, `LoopAgent` are **deprecated** in favor of `Workflow`. They still work but will be removed. We use them in collaborative examples because `Workflow` cannot yet be used as an `LlmAgent` sub-agent.
+- Function nodes receive upstream data via a `node_input` parameter (by name).
+- Session state in `BaseAgent` is accessed via `ctx.session.state`, not `ctx.state`.
+- Dynamic nodes require `@node(rerun_on_resume=True)`.
+
+## 📝 License
+
+Apache 2.0 — see [LICENSE](LICENSE) for details.
+
+## 🙏 Acknowledgments
+
+- [Google ADK Documentation](https://adk.dev)
+- [Vertex AI](https://cloud.google.com/vertex-ai)
+- Built with ☕ and curiosity
