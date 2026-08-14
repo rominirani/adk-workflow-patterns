@@ -1,6 +1,14 @@
 """01: Sequential Pipeline — Triage → Enrich → Respond"""
 import asyncio
 import os
+import warnings
+import logging
+
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=ResourceWarning)
+logging.getLogger("google.genai").setLevel(logging.ERROR)
+logging.getLogger("aiohttp").setLevel(logging.ERROR)
+
 from google.adk.agents import SequentialAgent, LlmAgent
 from google.adk import Runner
 from google.adk.sessions import InMemorySessionService
@@ -57,9 +65,6 @@ async def main():
         app_name="support_pipeline",
         session_service=InMemorySessionService(),
     )
-    session = await runner.session_service.create_session(
-        app_name="support_pipeline", user_id="user_1"
-    )
 
     tickets = [
         "Our entire checkout system is down! No customers can complete purchases.",
@@ -86,6 +91,8 @@ async def main():
                 for part in event.content.parts:
                     if part.text:
                         print(f"\n[{event.author}]:\n{part.text}")
+
+    await asyncio.sleep(0.25)
 
 if __name__ == "__main__":
     asyncio.run(main())

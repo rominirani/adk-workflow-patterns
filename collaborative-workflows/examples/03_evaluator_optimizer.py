@@ -1,6 +1,14 @@
 """03: Evaluator-Optimizer Loop — Draft, critique, refine"""
 import asyncio
 import os
+import warnings
+import logging
+
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=ResourceWarning)
+logging.getLogger("google.genai").setLevel(logging.ERROR)
+logging.getLogger("aiohttp").setLevel(logging.ERROR)
+
 from google.adk.agents import LoopAgent, LlmAgent
 from google.adk import Runner
 from google.adk.sessions import InMemorySessionService
@@ -73,6 +81,8 @@ async def main():
                         iteration += 1
                         print(f"\n--- Draft {(iteration + 1) // 2} ---")
                     print(f"[{event.author}]: {part.text}")
+
+    await asyncio.sleep(0.25)
 
 if __name__ == "__main__":
     asyncio.run(main())

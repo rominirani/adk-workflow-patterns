@@ -1,6 +1,14 @@
-"""05: Custom Dynamic Workflow — BaseAgent with conditional logic"""
+"""06: Custom Dynamic Workflow — BaseAgent with conditional logic"""
 import asyncio
 import os
+import warnings
+import logging
+
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=ResourceWarning)
+logging.getLogger("google.genai").setLevel(logging.ERROR)
+logging.getLogger("aiohttp").setLevel(logging.ERROR)
+
 from google.adk.agents import BaseAgent, LlmAgent, SequentialAgent, ParallelAgent
 from google.adk.agents.context import Context
 from google.adk import Runner
@@ -57,7 +65,7 @@ class SmartTriageAgent(BaseAgent):
         async for event in triage_agent.run_async(ctx):
             yield event
 
-        # Read triage result from state
+        # Read triage result from state (via ctx.session.state)
         priority = ctx.session.state.get("triage_priority", "P3").strip().upper()
         print(f"\n[SmartTriage] Priority detected: {priority}")
 
@@ -110,6 +118,8 @@ async def main():
                 for part in event.content.parts:
                     if part.text:
                         print(f"[{event.author}]: {part.text}")
+
+    await asyncio.sleep(0.25)
 
 if __name__ == "__main__":
     asyncio.run(main())
