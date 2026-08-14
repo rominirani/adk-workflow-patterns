@@ -46,8 +46,8 @@ python collaborative-workflows/examples/01_sequential_pipeline.py
 | 02 | [02_parallel_delegators.py](examples/02_parallel_delegators.py) | Parallel Delegators | `ParallelAgent` runs 3 analyses concurrently |
 | 03 | [03_evaluator_optimizer.py](examples/03_evaluator_optimizer.py) | Evaluator-Optimizer | `LoopAgent(max_iterations=3)` with writer + critic |
 | 04 | [04_coordinator.py](examples/04_coordinator.py) | Coordinator-Dispatcher | LLM routes via `sub_agents` + `description` |
-| 05 | [05_custom_workflow.py](examples/05_custom_workflow.py) | Custom BaseAgent | `_run_async_impl` with conditional branching |
-| 06 | [06_transfer_modes.py](examples/06_transfer_modes.py) | Transfer Modes | `single_turn`, `task`, `chat` modes |
+| 05 | [05_transfer_modes.py](examples/05_transfer_modes.py) | Transfer Modes | `single_turn`, `task`, `chat` modes |
+| 06 | [06_custom_workflow.py](examples/06_custom_workflow.py) | Custom BaseAgent | `_run_async_impl` with conditional branching |
 | 07 | [07_complete_system.py](examples/07_complete_system.py) | Complete System | All patterns under one coordinator |
 
 ## Key API Patterns
