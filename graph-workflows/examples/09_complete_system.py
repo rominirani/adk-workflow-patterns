@@ -9,6 +9,15 @@
 import asyncio
 import os
 import time
+import warnings
+import logging
+
+# Suppress internal SDK noise and warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="google.genai")
+warnings.filterwarnings("ignore", category=ResourceWarning)
+logging.getLogger("google.genai").setLevel(logging.ERROR)
+logging.getLogger("aiohttp").setLevel(logging.ERROR)
+
 from google.adk import Workflow, Agent, Runner, Event
 from google.adk.sessions import InMemorySessionService
 from google.adk.workflow import START, JoinNode, node
@@ -201,6 +210,9 @@ async def main():
         user_text="Where is my package for order #8492?",
         session_id="session_shipping_1",
     )
+
+    # Allow background aiohttp connections to finish closing
+    await asyncio.sleep(0.25)
 
 if __name__ == "__main__":
     asyncio.run(main())
