@@ -88,4 +88,14 @@ One of the most important conceptual epiphanies in building production AI agents
 
 ---
 
+## 🎯 Conclusion: The 5 Golden Rules of Agent Memory
+
+1. **Persistence is NOT Memory**: Use `DatabaseSessionService` to preserve chronological turn events for the active session, but use `MemoryService` (vector search) for cross-session long-term recall to protect context limits.
+2. **Use Scoped State**: Prefix permanent user flags with `user:*` (e.g. `user:dietary_preferences`) so they automatically hydrate across new sessions for the same user ID.
+3. **Keep Heavy Documents in Artifacts**: Offload multi-page PDFs, menus, and reports to `FileArtifactService` or `GcsArtifactService`, and query them via `load_artifacts_tool`.
+4. **Manage Working Memory**: Implement `EventsCompactionConfig` for long multi-turn conversations and emit `rewind_before_invocation_id` to prune hallucinations.
+5. **Zero-Rewrite Cloud Scaling**: Keep agent definitions clean and standard. Swap local SQLite and RAM services for Vertex AI Cloud Memory with zero code changes.
+
+---
+
 *Part of [ADK Workflow Patterns](../README.md)*
