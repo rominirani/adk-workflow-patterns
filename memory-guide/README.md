@@ -51,22 +51,28 @@ Every rung is tested against live Gemini models on Google Cloud Vertex AI:
 
 ---
 
-## 🛠️ Setup & Running
+## 🛠️ Google Cloud Database Setup & Running
 
 ```bash
 # 1. Activate virtual environment
 source .venv/bin/activate
 
-# 2. Install dependencies (including database support)
-pip install google-adk[db] sqlalchemy aiosqlite greenlet pydantic
+# 2. Install dependencies (including Google Cloud & Async Database support)
+pip install "google-adk[gcp]" "google-adk[db]" asyncpg sqlalchemy google-cloud-aiplatform google-cloud-storage
 
-# 3. Configure credentials (Vertex AI or Gemini API key)
+# 3. Configure Google Cloud Project & Location
 export GOOGLE_CLOUD_PROJECT="your-project-id"
 export GOOGLE_CLOUD_LOCATION="us-central1"
 export GOOGLE_GENAI_USE_VERTEXAI="True"
 
-# 4. Run any rung
-python memory-guide/examples/03_l3_searchable_memory.py
+# 4. Provision & Configure Google Cloud Database (Option A: Cloud SQL PostgreSQL)
+# gcloud sql instances create adk-chef-db --database-version=POSTGRES_15 --cpu=2 --memory=7680MiB --region=us-central1
+# gcloud sql users set-password postgres --instance=adk-chef-db --password="YOUR_PASSWORD"
+# gcloud sql databases create chef_memory --instance=adk-chef-db
+export CLOUDSQL_DATABASE_URL="postgresql+asyncpg://postgres:YOUR_PASSWORD@127.0.0.1:5432/chef_memory"
+
+# 5. Run any memory rung
+python memory-guide/examples/02_l2_durable_user_state.py
 ```
 
 ---
