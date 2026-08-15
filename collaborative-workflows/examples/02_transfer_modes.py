@@ -1,4 +1,4 @@
-"""05: Transfer Modes — chat, task, single_turn"""
+"""02: Sub-Agent Transfer Modes & Lifecycles — single_turn, task, chat"""
 import asyncio
 import os
 import warnings
@@ -10,7 +10,7 @@ warnings.filterwarnings("ignore", category=ResourceWarning)
 logging.getLogger("google.genai").setLevel(logging.ERROR)
 logging.getLogger("aiohttp").setLevel(logging.ERROR)
 
-from google.adk.agents import LlmAgent
+from google.adk.agents import Agent
 from google.adk import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -23,7 +23,7 @@ class BookingConfirmation(BaseModel):
     status: str = Field(default="confirmed", description="Booking status")
 
 # 1. single_turn mode: runs once as a tool-like agent, returns result to coordinator with no user interaction
-lookup_agent = LlmAgent(
+lookup_agent = Agent(
     name="account_lookup",
     model=MODEL,
     description="Looks up account information. Use when the user asks about their account status or details.",
@@ -32,7 +32,7 @@ lookup_agent = LlmAgent(
 )
 
 # 2. task mode: can ask clarifying questions across turns, auto-returns to coordinator once finish_task is called
-booking_agent = LlmAgent(
+booking_agent = Agent(
     name="appointment_booker",
     model=MODEL,
     description="Books support callback appointments. Use when the user wants to schedule a callback.",
@@ -47,8 +47,8 @@ booking_agent = LlmAgent(
     output_schema=BookingConfirmation,
 )
 
-# 3. chat mode (default): full conversational copilot
-advisor_agent = LlmAgent(
+# 3. chat mode (default): full conversational copilot handoff
+advisor_agent = Agent(
     name="product_advisor",
     model=MODEL,
     description="Provides detailed product advice and recommendations. Use for product questions.",
@@ -58,7 +58,7 @@ advisor_agent = LlmAgent(
 )
 
 # The Coordinator
-coordinator = LlmAgent(
+coordinator = Agent(
     name="coordinator",
     model=MODEL,
     instruction="""You are the support coordinator. Based on the user's request:

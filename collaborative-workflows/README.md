@@ -1,119 +1,218 @@
 # Collaborative Workflows — ADK 2 by Example
 
-> *"You define the team. The LLM decides who plays."*
+> *"You define the specialist team. The LLM decides who to invoke and when."*
 
-Collaborative workflows are for when you know the specialists available but the user's request determines which ones get involved and in what order. The LLM reads each agent's `description` and routes accordingly.
+Collaborative workflows are designed for multi-agent architectures where the optimal execution path cannot be hardcoded upfront. Instead of drawing static graph edges, you define a team of specialist agents with clear semantic descriptions and transfer modes. The top-level coordinator evaluates the user's intent in real time and delegates tasks dynamically.
 
 ---
 
-## When to Use Collaborative Workflows
+## 📌 Architectural Separation: Graphs vs. Collaborative Teams
 
-| Scenario | Example |
-|---|---|
-| Intent-based routing | "Refund" → billing, "crash" → tech support |
-| Multi-turn conversations | Appointment booking agent that asks follow-ups |
-| Quality review loops | Draft → Evaluate → Revise until approved |
-| Mixed specialist teams | Coordinator delegates to the right expert |
-| Conditional complexity | P1 tickets get parallel enrichment; P4 get quick answers |
+In ADK 2.6+, workflow patterns are strictly separated into two paradigms:
 
-## Examples
+```mermaid
+flowchart TD
+    Q1{"Can you draw the entire execution path\nbefore any user message arrives?"}
+    Q1 -->|Yes: Deterministic Topology| G["📊 Graph Workflows (Workflow)\n• Sequential Chains\n• Parallel Fan-out / Join\n• Deterministic Loops & Gate Conditions\n• Zero-token Python transforms"]
+    Q1 -->|No: Dynamic Intent & Delegation| C["🤝 Collaborative Multi-Agent Teams (Agent)\n• Coordinator-Dispatcher Routing\n• Sub-agent Transfer Modes (single_turn, task, chat)\n• Drafter / Critic Multi-Agent Peer Review\n• Custom Programmatic BaseAgent"]
+    
+    style G fill:#dbeafe,stroke:#1e40af,stroke-width:2px
+    style C fill:#fce7f3,stroke:#9d174d,stroke-width:2px
+```
 
-Each example is self-contained and tested against ADK 2.6.3 + Vertex AI.
+> [!NOTE]
+> **Deterministic Pipelines**: For fixed chains, parallel fan-out/join, and conditional graph routing, see the [Graph Workflows Guide](../graph-workflows/README.md).
+>
+> In ADK 2.6+, `SequentialAgent`, `ParallelAgent`, and `LoopAgent` are **deprecated** in favor of `Workflow`. This collaborative guide focuses exclusively on modern multi-agent coordination using `Agent` and `BaseAgent`.
 
-### Setup
+---
+
+## 🚀 Examples Overview
+
+Each example is self-contained, tested against ADK 2.6+, and runnable against Vertex AI or Google AI Studio.
+
+| # | File | Pattern | Core Concepts |
+|---|---|---|---|
+| 01 | [`01_coordinator_routing.py`](examples/01_coordinator_routing.py) | **Coordinator-Dispatcher** | `Agent(sub_agents=[...])` + semantic `description` routing |
+| 02 | [`02_transfer_modes.py`](examples/02_transfer_modes.py) | **Sub-Agent Transfer Modes** | `single_turn`, `task` with `output_schema`, and `chat` copilot mode |
+| 03 | [`03_supervisor_collaboration.py`](examples/03_supervisor_collaboration.py) | **Supervisor & Specialists** | Drafter + Critic multi-agent peer review without deprecated loops |
+| 04 | [`04_custom_orchestrator.py`](examples/04_custom_orchestrator.py) | **Custom BaseAgent Orchestrator** | Programmatic control, `ctx.session.state`, and dynamic dispatch |
+| 05 | [`05_complete_support_system.py`](examples/05_complete_support_system.py) | **Complete Support Concierge** | Full multi-agent customer support architecture |
+
+---
+
+## 🛠️ Setup & Running
 
 ```bash
-# From the repo root
-python3 -m venv .venv && source .venv/bin/activate
-pip install google-adk
+# 1. Activate virtual environment
+source .venv/bin/activate
 
+# 2. Install dependencies
+pip install google-adk pydantic
+
+# 3. Configure credentials (Vertex AI or Gemini API key)
 export GOOGLE_CLOUD_PROJECT="your-project-id"
 export GOOGLE_CLOUD_LOCATION="us-central1"
 export GOOGLE_GENAI_USE_VERTEXAI="True"
+# Or: export GOOGLE_API_KEY="your-gemini-api-key"
+
+# 4. Run any example
+python collaborative-workflows/examples/01_coordinator_routing.py
 ```
 
-### Run
+---
 
-```bash
-python collaborative-workflows/examples/01_sequential_pipeline.py
-```
+## 🧩 Key Collaborative Patterns Explained
 
-### Example Index
+### 1. The Coordinator-Dispatcher (Supervisor Pattern)
 
-| # | File | Pattern | Core Concept |
-|---|---|---|---|
-| 01 | [01_sequential_pipeline.py](examples/01_sequential_pipeline.py) | Sequential Pipeline | `SequentialAgent(sub_agents=[...])` with `output_key` |
-| 02 | [02_parallel_delegators.py](examples/02_parallel_delegators.py) | Parallel Delegators | `ParallelAgent` runs 3 analyses concurrently |
-| 03 | [03_evaluator_optimizer.py](examples/03_evaluator_optimizer.py) | Evaluator-Optimizer | `LoopAgent(max_iterations=3)` with writer + critic |
-| 04 | [04_coordinator.py](examples/04_coordinator.py) | Coordinator-Dispatcher | LLM routes via `sub_agents` + `description` |
-| 05 | [05_transfer_modes.py](examples/05_transfer_modes.py) | Transfer Modes | `single_turn`, `task`, `chat` modes |
-| 06 | [06_custom_workflow.py](examples/06_custom_workflow.py) | Custom BaseAgent | `_run_async_impl` with conditional branching |
-| 07 | [07_complete_system.py](examples/07_complete_system.py) | Complete System | All patterns under one coordinator |
-
-## Key API Patterns
-
-### Coordinator-Dispatcher (The Star Pattern)
+The central coordinator uses the LLM to analyze the user's request and automatically hand off to the right specialist based on their `description`:
 
 ```python
-coordinator = LlmAgent(
-    name="concierge",
+from google.adk.agents import Agent
+
+billing_specialist = Agent(
+    name="billing_specialist",
     model=MODEL,
-    instruction="Route to the right specialist.",
-    sub_agents=[billing, tech, shipping],  # LLM reads descriptions
+    description="Handles billing inquiries: refunds, incorrect charges, payment disputes, invoices, and pricing.",
+    instruction="You are a billing specialist...",
 )
-```
 
-### Sequential Pipeline
-
-```python
-pipeline = SequentialAgent(
-    name="support_pipeline",
-    sub_agents=[triage, enrich, respond],  # Runs in order
-)
-```
-
-### Data Passing with `output_key`
-
-```python
-triage = LlmAgent(
-    name="triage",
+coordinator = Agent(
+    name="support_concierge",
     model=MODEL,
-    instruction="Classify priority...",
-    output_key="triage_result",  # Saved to session state
+    instruction="Understand the user issue and transfer to the appropriate specialist. Do NOT answer directly.",
+    sub_agents=[billing_specialist, tech_specialist, shipping_specialist],
+)
+```
+
+```mermaid
+graph TD
+    User(["👤 User"]) --> Concierge["🤖 support_concierge (Coordinator)"]
+    Concierge -->|Refunds / Charges| B["💳 billing_specialist"]
+    Concierge -->|Crashes / Errors| T["🛠️ tech_specialist"]
+    Concierge -->|Tracking / Packages| S["📦 shipping_specialist"]
+```
+
+---
+
+### 2. Sub-Agent Transfer Modes & Lifecycles
+
+ADK 2 introduces fine-grained lifecycle control for sub-agents via the `mode` parameter:
+
+```mermaid
+graph LR
+    subgraph ST["single_turn"]
+        C1["Coordinator"] -->|"1. Invoke"| A1["Specialist"]
+        A1 -->|"2. Auto-return result"| C1
+    end
+    subgraph TM["task"]
+        C2["Coordinator"] -->|"1. Transfer"| A2["Task Agent"]
+        A2 <-->|"2. Multi-turn dialogue"| U["User"]
+        A2 -->|"3. finish_task(data)"| C2
+    end
+    subgraph CH["chat"]
+        C3["Coordinator"] -->|"1. Full handoff"| A3["Copilot"]
+        A3 <-->|"2. Ongoing conversation"| U
+    end
+```
+
+* **`mode="single_turn"`**: The sub-agent behaves like an intelligent tool. It executes once, returns its generated response to the coordinator without direct user interaction, and never strands the conversation.
+* **`mode="task"`**: The sub-agent takes over to complete a specific structured objective. It can ask follow-up questions across multiple turns, validates its final data against a Pydantic `output_schema`, and automatically returns control to the coordinator when done.
+* **`mode="chat"`** *(Default)*: Full conversational handoff where the sub-agent acts as an ongoing specialist copilot.
+
+```python
+# Single-turn: instant lookup
+lookup_agent = Agent(
+    name="account_lookup",
+    instruction="Look up account tier and return summary.",
+    mode="single_turn",
 )
 
-# Next agent reads from conversation context automatically
+# Task mode: multi-turn structured goal
+booking_agent = Agent(
+    name="appointment_booker",
+    instruction="Collect contact phone and preferred callback time, then finish_task.",
+    mode="task",
+    output_schema=BookingConfirmation,
+)
 ```
 
-### Transfer Modes
+---
+
+### 3. Dynamic Multi-Agent Collaboration (Drafter + Critic)
+
+Instead of using rigid loop constructs, a supervisor can orchestrate multi-agent peer review where specialized agents collaborate dynamically:
 
 ```python
-# Runs once, returns immediately — no user interaction
-lookup = LlmAgent(name="lookup", mode="single_turn", ...)
+# Drafter generates technical troubleshooting steps
+tech_drafter = Agent(
+    name="tech_drafter",
+    description="Drafts initial technical troubleshooting steps for complex software issues.",
+    mode="single_turn",
+)
 
-# Can ask user questions, auto-returns when done
-booker = LlmAgent(name="booker", mode="task", ...)
+# Critic verifies clarity, customer empathy, and safety
+quality_critic = Agent(
+    name="quality_critic",
+    description="Reviews technical drafts for safety, customer empathy, and clarity.",
+    mode="single_turn",
+)
 
-# Full multi-turn conversation (default)
-advisor = LlmAgent(name="advisor", mode="chat", ...)
+# Supervisor coordinates the two specialists
+supervisor = Agent(
+    name="editorial_supervisor",
+    instruction="""For technical issues:
+    1. Delegate to tech_drafter to generate a technical plan.
+    2. Delegate the draft to quality_critic to polish and verify.
+    3. Return the approved response to the customer.""",
+    sub_agents=[tech_drafter, quality_critic],
+)
 ```
 
-### Custom BaseAgent
+---
+
+### 4. Custom Orchestration via `BaseAgent`
+
+When you need programmatic decision logic, custom session state mutations, or circuit breaking, inherit from `BaseAgent` and implement `_run_async_impl`:
 
 ```python
-class SmartRouter(BaseAgent):
-    async def _run_async_impl(self, ctx):
-        async for event in triage.run_async(ctx):
+from google.adk.agents import BaseAgent, Agent
+from google.adk.agents.context import Context
+
+class SmartCustomOrchestrator(BaseAgent):
+    async def _run_async_impl(self, ctx: Context):
+        # 1. Run triage
+        async for event in triage_agent.run_async(ctx):
             yield event
-        priority = ctx.session.state.get("priority", "P3")
-        if priority == "P1":
-            async for event in urgent_handler.run_async(ctx):
+
+        # 2. Inspect session state
+        priority = ctx.session.state.get("triage_priority", "P3").upper()
+
+        # 3. Dynamic dispatch based on state
+        if priority in ("P1", "P2"):
+            async for event in vip_enrichment.run_async(ctx):
+                yield event
+            async for event in urgent_responder.run_async(ctx):
+                yield event
+        else:
+            async for event in standard_responder.run_async(ctx):
                 yield event
 ```
 
-## ⚠️ Deprecation Notice
+---
 
-`SequentialAgent`, `ParallelAgent`, and `LoopAgent` are **deprecated** in ADK 2.6+ in favor of `Workflow`. They still work but will be removed. We use them here because `Workflow` cannot yet be used as an `LlmAgent` sub-agent. See the [Graph Workflows Guide](../graph-workflows/) for the `Workflow`-based approach.
+## 🎯 Summary: When to Use What
+
+| Requirement | Recommended Approach | ADK Primitive |
+|---|---|---|
+| Deterministic sequence or pipeline | Graph Workflow | `Workflow(edges=[(START, step1), (step1, step2)])` |
+| Parallel fan-out & join | Graph Workflow | `Workflow` + `JoinNode` |
+| Deterministic loop with quality gate | Graph Workflow | `Workflow` with conditional back-edge |
+| Intent-based dynamic routing | Collaborative Team | `Agent(sub_agents=[...])` + semantic `description` |
+| One-shot helper / intelligent tool | Collaborative Team | `Agent(mode="single_turn")` |
+| Multi-turn data collection & form filling | Collaborative Team | `Agent(mode="task", output_schema=Model)` |
+| Programmatic logic with session state | Custom Agent | Subclass `BaseAgent._run_async_impl` |
 
 ---
 

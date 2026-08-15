@@ -1,4 +1,4 @@
-"""04: Coordinator-Dispatcher — LLM routes to the right specialist"""
+"""01: Coordinator-Dispatcher — LLM routes to the right specialist via Agent descriptions"""
 import asyncio
 import os
 import warnings
@@ -9,18 +9,18 @@ warnings.filterwarnings("ignore", category=ResourceWarning)
 logging.getLogger("google.genai").setLevel(logging.ERROR)
 logging.getLogger("aiohttp").setLevel(logging.ERROR)
 
-from google.adk.agents import LlmAgent
+from google.adk.agents import Agent
 from google.adk import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 MODEL = os.environ.get("ADK_MODEL", "gemini-2.5-flash")
 
-# Specialist agents with clear descriptions
-billing_specialist = LlmAgent(
+# Specialist agents with clear semantic descriptions
+billing_specialist = Agent(
     name="billing_specialist",
     model=MODEL,
-    description="Handles billing inquiries: refunds, charges, payment disputes, invoices, pricing.",
+    description="Handles billing inquiries: refunds, double charges, payment disputes, invoices, and pricing.",
     instruction="""You are a billing support specialist. Help the customer with their billing issue.
     - Be empathetic and professional
     - If a refund is needed, explain the process (5-7 business days)
@@ -28,44 +28,45 @@ billing_specialist = LlmAgent(
     - Keep your response under 60 words""",
 )
 
-tech_specialist = LlmAgent(
+tech_specialist = Agent(
     name="tech_specialist",
     model=MODEL,
-    description="Handles technical issues: bugs, errors, crashes, performance problems, setup help.",
+    description="Handles technical issues: bugs, errors, app crashes, performance problems, and setup help.",
     instruction="""You are a technical support engineer. Help the customer with their technical issue.
-    - Ask for error messages or screenshots if relevant
-    - Provide step-by-step troubleshooting
+    - Ask for error messages or reproduction steps if relevant
+    - Provide concise step-by-step troubleshooting
     - Keep your response under 60 words""",
 )
 
-shipping_specialist = LlmAgent(
+shipping_specialist = Agent(
     name="shipping_specialist",
     model=MODEL,
-    description="Handles shipping and delivery: tracking, lost packages, delivery estimates, address changes.",
+    description="Handles shipping and delivery: tracking, lost packages, delivery estimates, and address changes.",
     instruction="""You are a shipping support specialist. Help with delivery inquiries.
-    - Provide tracking information
+    - Provide tracking information and delivery estimates
     - For lost packages, initiate a trace (48 hours)
     - Keep your response under 60 words""",
 )
 
-general_specialist = LlmAgent(
+general_specialist = Agent(
     name="general_specialist",
     model=MODEL,
-    description="Handles general questions: account info, policies, feature requests, feedback.",
+    description="Handles general questions: company info, store policies, feature requests, and feedback.",
     instruction="""You are a general support agent. Handle miscellaneous customer questions.
     - Be helpful and concise
     - Keep your response under 60 words""",
 )
 
-# The Coordinator — routes based on sub_agent descriptions
-coordinator = LlmAgent(
+# The Coordinator — routes based on sub_agents descriptions without hardcoded graph edges
+coordinator = Agent(
     name="support_concierge",
     model=MODEL,
-    instruction="""You are the customer support concierge. Your ONLY job is to:
+    instruction="""You are the customer support concierge. Your job is to:
     1. Understand the customer's issue
-    2. Route them to the most appropriate specialist using transfer_to_agent
+    2. Route them to the most appropriate specialist based on their domain
     
-    Do NOT answer the question yourself. ALWAYS delegate to a specialist.""",
+    Do NOT attempt to resolve billing, technical, shipping, or general issues yourself.
+    ALWAYS delegate to the corresponding specialist.""",
     sub_agents=[billing_specialist, tech_specialist, shipping_specialist, general_specialist],
 )
 

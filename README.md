@@ -33,26 +33,24 @@ When you know the exact shape of your workflow ahead of time, graph workflows gi
 | 08 | Dynamic Nodes | `@node(rerun_on_resume=True)` + `ctx.run_node()` |
 | 09 | Complete System | All patterns in one graph |
 
-### 2. [Collaborative Workflows](collaborative-workflows/) — 7 Examples
+### 2. [Collaborative Workflows](collaborative-workflows/) — 5 Examples
 > *"You define the team. The LLM decides who plays."*
 
-When you know the specialists but the user's request determines who gets involved, collaborative workflows let the LLM orchestrate.
+When you know the specialists but the user's request determines who gets involved, collaborative multi-agent teams let the LLM orchestrate dynamically.
 
 | # | Pattern | What You'll Learn |
 |---|---|---|
-| 01 | Sequential Pipeline | `SequentialAgent` with `output_key` for data passing |
-| 02 | Parallel Delegators | `ParallelAgent` for concurrent analysis |
-| 03 | Evaluator-Optimizer | `LoopAgent` with writer + critic loop |
-| 04 | Coordinator-Dispatcher | LLM routes to specialists via `sub_agents` |
-| 05 | Transfer Modes | `single_turn`, `task`, `chat` modes |
-| 06 | Custom BaseAgent | `_run_async_impl` with conditional branching |
-| 07 | Complete System | All patterns under one coordinator |
+| 01 | Coordinator-Dispatcher | Semantic routing via `Agent(sub_agents=[...])` and `description` |
+| 02 | Sub-Agent Transfer Modes | `single_turn`, `task` with `output_schema`, and `chat` modes |
+| 03 | Supervisor & Specialists | Drafter + Critic multi-agent peer review |
+| 04 | Custom BaseAgent | Programmatic control, `ctx.session.state`, & dynamic dispatch |
+| 05 | Complete Support Concierge | Full multi-agent customer support architecture |
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.11+
-- Google Cloud project with Vertex AI API enabled
+- Google Cloud project with Vertex AI API enabled (or Gemini API key)
 - `gcloud auth login` completed
 
 ### Setup
@@ -67,7 +65,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
-pip install google-adk
+pip install google-adk pydantic
 
 # Configure Vertex AI
 export GOOGLE_CLOUD_PROJECT="your-project-id"
@@ -82,7 +80,7 @@ export GOOGLE_GENAI_USE_VERTEXAI="True"
 python graph-workflows/examples/01_sequential.py
 
 # Collaborative workflow example
-python collaborative-workflows/examples/01_sequential_pipeline.py
+python collaborative-workflows/examples/01_coordinator_routing.py
 ```
 
 ### Using an API Key Instead
@@ -100,18 +98,20 @@ export GOOGLE_API_KEY="your-api-key"
 adk-workflow-patterns/
 ├── README.md                              ← You are here
 ├── graph-workflows/
-│   ├── README.md                          ← Guide with theory + diagrams
+│   ├── README.md                          ← Deterministic graph workflows guide
 │   └── examples/
 │       ├── 01_sequential.py
 │       ├── 02_routing.py
 │       ├── ...
 │       └── 09_complete_system.py
 ├── collaborative-workflows/
-│   ├── README.md                          ← Guide with theory + diagrams
+│   ├── README.md                          ← Autonomous multi-agent guide
 │   └── examples/
-│       ├── 01_sequential_pipeline.py
-│       ├── ...
-│       └── 07_complete_system.py
+│       ├── 01_coordinator_routing.py
+│       ├── 02_transfer_modes.py
+│       ├── 03_supervisor_collaboration.py
+│       ├── 04_custom_orchestrator.py
+│       └── 05_complete_support_system.py
 ├── requirements.txt
 ├── .gitignore
 └── LICENSE
@@ -121,22 +121,23 @@ adk-workflow-patterns/
 
 | Concept | Graph Workflows | Collaborative Workflows |
 |---|---|---|
-| **Who decides what runs?** | The graph you drew | The LLM model |
-| **Core primitive** | `Workflow(edges=[...])` | `LlmAgent(sub_agents=[...])` |
-| **Data flow** | `node_input` parameter | `output_key` → session state |
-| **Routing** | `EventActions(route=...)` | LLM reads `description` fields |
-| **Parallelism** | `JoinNode` | `ParallelAgent` |
-| **Loops** | Route back to earlier node | `LoopAgent(max_iterations=N)` |
-| **Dynamic** | `@node` + `ctx.run_node()` | `BaseAgent._run_async_impl()` |
+| **Who decides what runs?** | The graph topology | The LLM model / Supervisor |
+| **Core primitive** | `Workflow(edges=[...])` | `Agent(sub_agents=[...])` |
+| **Data flow** | `node_input` parameter | Session state (`ctx.session.state`) / sub-agent returns |
+| **Routing** | `EventActions(route=...)` | LLM reads semantic `description` fields |
+| **Parallelism** | `JoinNode` | Concurrent tool / sub-agent dispatch |
+| **Refinement / Loops** | Graph conditional back-edge | Supervisor / Critic collaboration |
+| **Dynamic Custom Logic** | `@node` + `ctx.run_node()` | `BaseAgent._run_async_impl()` |
 
 ## ⚠️ ADK Version Notes
 
-These examples are tested against **ADK 2.6.3**. Notable API details:
+These examples are tested against **ADK 2.6+**. Notable API details:
 
-- `SequentialAgent`, `ParallelAgent`, `LoopAgent` are **deprecated** in favor of `Workflow`. They still work but will be removed. We use them in collaborative examples because `Workflow` cannot yet be used as an `LlmAgent` sub-agent.
+- `SequentialAgent`, `ParallelAgent`, and `LoopAgent` are **deprecated** in favor of `Workflow`. For deterministic chains, parallel joins, and loops, use `Workflow` (see [Graph Workflows](graph-workflows/)).
+- `Agent` is the modern canonical alias for `LlmAgent`.
 - Function nodes receive upstream data via a `node_input` parameter (by name).
 - Session state in `BaseAgent` is accessed via `ctx.session.state`, not `ctx.state`.
-- Dynamic nodes require `@node(rerun_on_resume=True)`.
+- Dynamic nodes in graphs use `@node(rerun_on_resume=True)`.
 
 ## 📝 License
 
