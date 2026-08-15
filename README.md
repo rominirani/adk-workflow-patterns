@@ -46,6 +46,22 @@ When you know the specialists but the user's request determines who gets involve
 | 04 | Custom BaseAgent | Programmatic control, `ctx.session.state`, & dynamic dispatch |
 | 05 | Complete Support Concierge | Full multi-agent customer support architecture |
 
+### 3. [Agent Memory Guide](memory-guide/) — 8 Graded Rungs (L0 → L7)
+> *"Ask an agent for dinner ideas on Monday, come back Wednesday, and most agents greet you like a stranger."*
+
+Master agent memory from scratchpad session states to durable SQL databases, vector memory banks, working-memory compaction, and zero-rewrite Vertex AI cloud memory.
+
+| Level | Rung | What You'll Learn |
+|---|---|---|
+| L0 | Stateless Goldfish | Baseline: Why agents forget across sessions |
+| L1 | Within-Chat Scratchpad | Multi-agent variable sharing with `output_key` & `session.state` |
+| L2 | Durable User State | Cross-session persistence with `DatabaseSessionService` & `user:*` |
+| L3 | Searchable Vector Memory | Long-term memory search with `add_session_to_memory` |
+| L4 | File Artifacts | External document retrieval with `FileArtifactService` |
+| L5 | Working-Memory Management | `EventsCompactionConfig` & conversational rewind |
+| L6 | Durability & Checkpoints | Pausing & resuming workflows with `state_delta` |
+| L7 | Managed Cloud Memory | Zero-rewrite scale with `VertexAiSessionService` & Memory Bank |
+
 ## 🚀 Quick Start
 
 ### Prerequisites
