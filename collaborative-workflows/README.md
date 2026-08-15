@@ -296,4 +296,45 @@ See [`05_complete_support_system.py`](examples/05_complete_support_system.py) fo
 
 ---
 
+## 🏛️ The Production Sweet Spot: Hybrid Architectures
+
+In enterprise applications, the most effective systems compose both paradigms into a **Hybrid Architecture**:
+
+```mermaid
+flowchart TD
+    Customer(["👤 Customer Inquiry"]) --> Concierge["🤖 Support Concierge (Agent Coordinator)\n(Dynamic Intent Evaluation & Dispatch)"]
+    
+    subgraph Collab["Autonomous Dynamic Layer"]
+        Concierge -->|Booking Intent| TaskAgent["📅 Appointment Booker\n(mode='task' + Pydantic Schema)"]
+        Concierge -->|Troubleshooting| ChatAgent["🛠️ Tech Specialist\n(mode='chat' copilot)"]
+    end
+    
+    subgraph Deterministic["Deterministic Zero-Token & Compliance Layer"]
+        Concierge -->|Account Verification| Lookup["🔍 Account Lookup\n(mode='single_turn')"]
+        Concierge -->|Process Refund / Payment| GraphWF["📊 Refund Compliance Workflow (Workflow)\nSTART → Verify Fraud (0 tokens) → Call Gateway → Audit Log"]
+    end
+
+    style Concierge fill:#dbeafe,stroke:#1e40af,stroke-width:3px
+    style TaskAgent fill:#fce7f3,stroke:#9d174d
+    style ChatAgent fill:#dcfce7,stroke:#15803d
+    style Lookup fill:#fef3c7,stroke:#d97706
+    style GraphWF fill:#e0e7ff,stroke:#4338ca,stroke-width:2px
+```
+
+* **Dynamic at the Edge**: A top-level Coordinator handles messy, conversational user requests without brittle state machines.
+* **Deterministic at the Core**: Critical compliance, fraud verification, and payment execution flows are handed off to zero-token `Workflow` graphs.
+* **Typed Task Contracts**: Tasks that require strict data validation (like booking appointments) use `mode="task"` with typed Pydantic models.
+
+---
+
+## 🧠 4 Golden Rules for ADK Developers
+
+1. **Descriptions are API contracts**: Spend time writing clear, distinct `description` prompts for sub-agents—this is how the coordinator decides when to invoke them.
+2. **Right mode for the right job**: Use `single_turn` for read-only lookups, `task` with `output_schema` for structured form collection, and `chat` for copilots.
+3. **Prefer Graphs for fixed flows**: Never spend LLM tokens on steps that can be expressed as a Python function or a deterministic `Workflow`.
+4. **Leverage `ctx.session.state`**: Treat session state as the shared whiteboard between agents.
+
+---
+
 *Part of [ADK Workflow Patterns](../README.md)*
+
