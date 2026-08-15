@@ -1,6 +1,6 @@
-# ADK Workflow Patterns — Learn by Example
+# ADK 2 Architecture Patterns & Cookbook: Workflows, Memory & Multi-Agent Systems
 
-**Practical, tested examples for building AI agent workflows with Google's Agent Development Kit (ADK).**
+**Learn Google Agent Development Kit (ADK 2) by example — from deterministic graph pipelines and collaborative multi-agent teams to 8-level agent memory and cloud scale.**
 
 [![ADK](https://img.shields.io/badge/ADK-2.6.3-blue)](https://adk.dev)
 [![Python](https://img.shields.io/badge/Python-3.11+-green)](https://python.org)
