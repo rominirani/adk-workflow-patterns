@@ -66,15 +66,25 @@ python collaborative-workflows/examples/01_coordinator_routing.py
 
 ### 1. The Coordinator-Dispatcher (Supervisor Pattern)
 
-The central coordinator uses the LLM to analyze the user's request and automatically hand off to the right specialist based on their `description`:
+#### Concept & Why to Use
+When you have multiple specialized agents (billing, technical, shipping, general support), hardcoding routing conditions via keywords can become brittle. The Coordinator-Dispatcher pattern gives a central concierge agent a list of specialists. The coordinator inspects the user query, reads each sub-agent's `description`, and routes dynamically.
 
+```mermaid
+graph TD
+    User(["👤 Customer"]) --> Concierge["🤖 support_concierge (Coordinator)"]
+    Concierge -->|Refunds / Charges| B["💳 billing_specialist"]
+    Concierge -->|Crashes / Errors| T["🛠️ tech_specialist"]
+    Concierge -->|Tracking / Packages| S["📦 shipping_specialist"]
+```
+
+#### Code Implementation
 ```python
 from google.adk.agents import Agent
 
 billing_specialist = Agent(
     name="billing_specialist",
     model=MODEL,
-    description="Handles billing inquiries: refunds, incorrect charges, payment disputes, invoices, and pricing.",
+    description="Handles billing inquiries: refunds, double charges, payment disputes, invoices, and pricing.",
     instruction="You are a billing specialist...",
 )
 
@@ -86,19 +96,28 @@ coordinator = Agent(
 )
 ```
 
-```mermaid
-graph TD
-    User(["👤 User"]) --> Concierge["🤖 support_concierge (Coordinator)"]
-    Concierge -->|Refunds / Charges| B["💳 billing_specialist"]
-    Concierge -->|Crashes / Errors| T["🛠️ tech_specialist"]
-    Concierge -->|Tracking / Packages| S["📦 shipping_specialist"]
+#### Walkthrough
+* `Agent(description=...)`: Provides the semantic contract the coordinator reads to route.
+* `sub_agents=[...]`: Arms the coordinator with dynamic routing capabilities.
+* No `EventActions(route=...)` is needed—the LLM resolves intent autonomously.
+
+#### Verified Output
+```
+============================================================
+CUSTOMER: I was charged twice for order #12345
+============================================================
+[billing_specialist]: I understand your frustration with the double charge for order #12345. I apologize for the inconvenience. We'll investigate this immediately. If a refund is needed, please allow 5-7 business days for processing.
 ```
 
 ---
 
 ### 2. Sub-Agent Transfer Modes & Lifecycles
 
-ADK 2 introduces fine-grained lifecycle control for sub-agents via the `mode` parameter:
+#### Concept & Why to Use
+Traditional agent handoffs often lead to "stranded conversations" where sub-agents never return control. ADK 2 introduces explicit `mode` contracts:
+* `mode="single_turn"`: Executes silently like a tool and returns immediately.
+* `mode="task"`: Interacts across turns to collect required fields validated by a Pydantic `output_schema`, then auto-returns via `finish_task`.
+* `mode="chat"`: Standard multi-turn copilot dialogue.
 
 ```mermaid
 graph LR
@@ -111,75 +130,114 @@ graph LR
         A2 <-->|"2. Multi-turn dialogue"| U["User"]
         A2 -->|"3. finish_task(data)"| C2
     end
-    subgraph CH["chat"]
-        C3["Coordinator"] -->|"1. Full handoff"| A3["Copilot"]
-        A3 <-->|"2. Ongoing conversation"| U
-    end
 ```
 
-* **`mode="single_turn"`**: The sub-agent behaves like an intelligent tool. It executes once, returns its generated response to the coordinator without direct user interaction, and never strands the conversation.
-* **`mode="task"`**: The sub-agent takes over to complete a specific structured objective. It can ask follow-up questions across multiple turns, validates its final data against a Pydantic `output_schema`, and automatically returns control to the coordinator when done.
-* **`mode="chat"`** *(Default)*: Full conversational handoff where the sub-agent acts as an ongoing specialist copilot.
-
+#### Code Implementation
 ```python
-# Single-turn: instant lookup
+class BookingConfirmation(BaseModel):
+    date_time: str = Field(description="The agreed date and time")
+    contact_number: str = Field(description="Customer contact phone number")
+    status: str = Field(default="confirmed", description="Booking status")
+
 lookup_agent = Agent(
     name="account_lookup",
-    instruction="Look up account tier and return summary.",
+    instruction="Return account status summary.",
     mode="single_turn",
 )
 
-# Task mode: multi-turn structured goal
 booking_agent = Agent(
     name="appointment_booker",
-    instruction="Collect contact phone and preferred callback time, then finish_task.",
+    instruction="Collect date/time and phone number, then call finish_task.",
     mode="task",
     output_schema=BookingConfirmation,
 )
+```
+
+#### Walkthrough
+* `mode="single_turn"` prevents unnecessary conversational back-and-forth for read-only lookups.
+* `mode="task"` enforces typed data collection across multiple turns before yielding back to the coordinator.
+
+#### Verified Output
+```
+=== TEST 2: task mode (Multi-Turn Callback Booking) ===
+
+[User -> Turn 1]: I need to schedule a technical support callback.
+[appointment_booker]: I can help you schedule a technical support callback. What is your preferred date and time for the callback, and what is your phone number?
+
+[User -> Turn 2]: Tomorrow at 2:00 PM EST. You can reach me at 555-0199.
+[coordinator]: Your technical support callback has been scheduled for Tomorrow at 2:00 PM EST. A specialist will call you at 555-0199.
 ```
 
 ---
 
 ### 3. Dynamic Multi-Agent Collaboration (Drafter + Critic)
 
-Instead of using rigid loop constructs, a supervisor can orchestrate multi-agent peer review where specialized agents collaborate dynamically:
+#### Concept & Why to Use
+For sensitive or complex queries, combining specialists into a peer-review workflow improves quality. A supervisor delegates technical diagnosis to a Drafter, passes the draft to a Quality Critic for review and safety checks, and delivers the finalized resolution.
 
+```mermaid
+sequenceDiagram
+    actor Customer
+    participant Supervisor as 🤖 Supervisor
+    participant Drafter as 🛠️ Tech Drafter (single_turn)
+    participant Critic as 🔍 Quality Critic (single_turn)
+
+    Customer->>Supervisor: Complex database outage
+    Supervisor->>Drafter: Generate technical diagnosis
+    Drafter-->>Supervisor: 3-step action plan
+    Supervisor->>Critic: Review for safety & empathy
+    Critic-->>Supervisor: Customer-ready response
+    Supervisor->>Customer: Deliver verified response
+```
+
+#### Code Implementation
 ```python
-# Drafter generates technical troubleshooting steps
 tech_drafter = Agent(
     name="tech_drafter",
-    description="Drafts initial technical troubleshooting steps for complex software issues.",
+    instruction="Write a concise 3-step technical action plan.",
     mode="single_turn",
 )
 
-# Critic verifies clarity, customer empathy, and safety
 quality_critic = Agent(
     name="quality_critic",
-    description="Reviews technical drafts for safety, customer empathy, and clarity.",
+    instruction="Polish the draft for customer empathy, clarity, and safety.",
     mode="single_turn",
 )
 
-# Supervisor coordinates the two specialists
 supervisor = Agent(
     name="editorial_supervisor",
-    instruction="""For technical issues:
-    1. Delegate to tech_drafter to generate a technical plan.
-    2. Delegate the draft to quality_critic to polish and verify.
-    3. Return the approved response to the customer.""",
+    instruction="Delegate first to tech_drafter, then to quality_critic, then deliver response.",
     sub_agents=[tech_drafter, quality_critic],
 )
+```
+
+#### Walkthrough
+* Both specialists use `mode="single_turn"` to operate as focused reasoning engines.
+* The supervisor coordinates peer review dynamically without relying on deprecated `LoopAgent` constructs.
+
+#### Verified Output
+```
+[tech_drafter]:
+1. Review & Adjust Pool Size
+2. Optimize Queries
+3. Implement Connection Health Checks
+
+[quality_critic]:
+We appreciate you sharing these valuable insights. Optimizing database connection pools...
+
+[editorial_supervisor]:
+My apologies for the issues you're experiencing with your checkout page... Here's a plan to address the problem...
 ```
 
 ---
 
 ### 4. Custom Orchestration via `BaseAgent`
 
-When you need programmatic decision logic, custom session state mutations, or circuit breaking, inherit from `BaseAgent` and implement `_run_async_impl`:
+#### Concept & Why to Use
+When you need programmatic decision logic, custom session state mutations (`ctx.session.state`), or circuit breaking, inherit from `BaseAgent` and implement `_run_async_impl`.
 
+#### Code Implementation
 ```python
-from google.adk.agents import BaseAgent, Agent
-from google.adk.agents.context import Context
-
 class SmartCustomOrchestrator(BaseAgent):
     async def _run_async_impl(self, ctx: Context):
         # 1. Run triage
@@ -189,9 +247,9 @@ class SmartCustomOrchestrator(BaseAgent):
         # 2. Inspect session state
         priority = ctx.session.state.get("triage_priority", "P3").upper()
 
-        # 3. Dynamic dispatch based on state
+        # 3. Dynamic programmatic dispatch
         if priority in ("P1", "P2"):
-            async for event in vip_enrichment.run_async(ctx):
+            async for event in enrichment_agent.run_async(ctx):
                 yield event
             async for event in urgent_responder.run_async(ctx):
                 yield event
@@ -199,6 +257,28 @@ class SmartCustomOrchestrator(BaseAgent):
             async for event in standard_responder.run_async(ctx):
                 yield event
 ```
+
+#### Walkthrough
+* `output_key="triage_priority"` stores output directly into `ctx.session.state`.
+* Python `if/else` logic controls execution flow with 100% determinism.
+
+#### Verified Output
+```
+[P1 Critical Ticket] Our production database is unreachable and all API requests are failing 100%!
+[triage_agent]: P1
+[CustomOrchestrator] Evaluated Priority in state: P1
+[CustomOrchestrator] Escalating: Executing VIP Enrichment + Urgent Responder
+[enrichment_agent]: Customer Tier: Platinum Enterprise | SLA: 15-minute response
+[urgent_responder]: Acknowledged. Your Platinum Enterprise tier P1 incident is our highest priority...
+```
+
+---
+
+### 5. Complete Support System
+
+The complete enterprise concierge combines all patterns—a central `Agent` orchestrator dispatching to `mode="single_turn"` lookups, `mode="task"` form completion, and `mode="chat"` specialist copilots.
+
+See [`05_complete_support_system.py`](examples/05_complete_support_system.py) for the full runnable script.
 
 ---
 
