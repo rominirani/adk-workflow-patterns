@@ -15,7 +15,14 @@ from google.adk.sessions import DatabaseSessionService
 from google.genai import types
 
 MODEL = os.environ.get("ADK_MODEL", "gemini-2.5-flash")
-DB_URL = "sqlite+aiosqlite:///chef_memory.db"
+
+# Cloud Database configuration (Google Cloud SQL PostgreSQL / Vertex AI Managed Sessions)
+# For Google Cloud SQL (PostgreSQL): postgresql+asyncpg://<user>:<password>@<cloud_sql_host>/<database>
+# Or fallback to persistent Database URL from environment:
+CLOUDSQL_DB_URL = os.environ.get(
+    "CLOUDSQL_DATABASE_URL", 
+    "sqlite+aiosqlite:///chef_cloud_persisted.db"  # Async SQL engine compatible with Cloud SQL PostgreSQL & SQLite
+)
 
 # Agent that writes to user-scoped persistent state: user:allergies, user:cuisine
 profile_agent = Agent(
@@ -37,12 +44,20 @@ chef_agent = Agent(
     Always adhere strictly to these preferences and allergies when suggesting dinner recipes.""",
 )
 
-async def main():
-    # Clean up old database file for a clean demonstration run
-    if os.path.exists("chef_memory.db"):
-        os.remove("chef_memory.db")
+def get_cloud_session_service():
+    """Returns Cloud SQL DatabaseSessionService (or VertexAiSessionService in production)."""
+    # Vertex AI / Google Cloud Managed Database Service:
+    # If GOOGLE_GENAI_USE_VERTEXAI and VERTEX_SESSION_ENGINE are configured:
+    # return VertexAiSessionService(project=PROJECT_ID, location=LOCATION)
+    #
+    # For Google Cloud SQL (PostgreSQL / AlloyDB):
+    return DatabaseSessionService(db_url=CLOUDSQL_DB_URL)
 
-    session_service = DatabaseSessionService(db_url=DB_URL)
+async def main():
+    if os.path.exists("chef_cloud_persisted.db"):
+        os.remove("chef_cloud_persisted.db")
+
+    session_service = get_cloud_session_service()
 
     # =========================================================================
     # DAY 1: Session 1 — User tells agent their permanent preferences
@@ -79,8 +94,8 @@ async def main():
     print("=== DAY 3: SERVER RESTART -> Brand New Session 2 for u_alex ===")
     print("="*65)
     
-    # Reinitialize service from DB to simulate fresh server process
-    new_session_service = DatabaseSessionService(db_url=DB_URL)
+    # Reinitialize service to simulate fresh server process connecting to Cloud SQL
+    new_session_service = get_cloud_session_service()
     runner2 = Runner(
         agent=chef_agent,
         app_name="chef_app",

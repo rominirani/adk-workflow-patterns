@@ -16,7 +16,13 @@ from google.adk.sessions import DatabaseSessionService
 from google.genai import types
 
 MODEL = os.environ.get("ADK_MODEL", "gemini-2.5-flash")
-DB_URL = "sqlite+aiosqlite:///durable_workflow.db"
+
+# Cloud Database configuration (Google Cloud SQL PostgreSQL / AlloyDB)
+# Connection URL format: postgresql+asyncpg://<db_user>:<db_password>@<cloud_sql_host>/<database>
+CLOUDSQL_DB_URL = os.environ.get(
+    "CLOUDSQL_DATABASE_URL", 
+    "sqlite+aiosqlite:///durable_cloud_workflow.db"
+)
 
 # Step 1: Automated Proposal Drafter
 menu_drafter = Agent(
@@ -62,10 +68,10 @@ resumed_workflow = Workflow(
 )
 
 async def main():
-    if os.path.exists("durable_workflow.db"):
-        os.remove("durable_workflow.db")
+    if os.path.exists("durable_cloud_workflow.db"):
+        os.remove("durable_cloud_workflow.db")
 
-    session_service = DatabaseSessionService(db_url=DB_URL)
+    session_service = DatabaseSessionService(db_url=CLOUDSQL_DB_URL)
 
     # -------------------------------------------------------------------------
     # PHASE 1: Execution runs up to approval gate and checkpoints to Database
